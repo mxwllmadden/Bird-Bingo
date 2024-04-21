@@ -1,0 +1,14 @@
+name: birdo
+channels:
+  - anaconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python-dotenv
+  - pip
+  - python>3.10
+  - matplotlib
+  - numpy
+  - pip:
+      - ebird-api
+      - simple_image_download

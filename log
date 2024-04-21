@@ -1,0 +1,315 @@
+[1mdiff --git a/birdo.py b/birdo.py[m
+[1mindex 07bdd6c..68039fa 100644[m
+[1m--- a/birdo.py[m
+[1m+++ b/birdo.py[m
+[36m@@ -1,87 +1,144 @@[m
+ # -*- coding: utf-8 -*-[m
+ """[m
+[31m-Created on Fri Apr 19 17:26:01 2024[m
+[31m-[m
+[31m-@author: mbmad[m
+[32m+[m[32mBird Bingo Creator[m
+ """[m
+ [m
+[32m+[m[32mimport urllib.parse[m
+[32m+[m[32mimport os[m
+[32m+[m[32mimport datetime[m
+[32m+[m[32mimport random[m
+[32m+[m[32mimport pathlib[m
+ import requests as req[m
+ import ebird.api as ebirb[m
+[31m-import urllib.parse[m
+ from simple_image_download import simple_image_download as simp[m
+[31m-import random[m
+ from matplotlib import pyplot, image[m
+[31m-import os[m
+[31m-import pathlib[m
+[31m-import datetime[m
+[32m+[m[32mfrom dotenv import load_dotenv[m
+ import numpy as np[m
+ [m
+[31m-now = datetime.datetime.now().strftime('%y.%m.%d %H-%M')[m
+[31m-[m
+[31m-# API KEYS[m
+[31m-ebirdkey = 'APIKEY'[m
+[31m-[m
+[32m+[m[32mload_dotenv('.env')[m
+ [m
+[32m+[m[32m# Load API Keys[m
+[32m+[m[32mEBIRDKEY = os.getenv('EBIRDKEY')[m
+ [m
+[31m-def getebirddata(lat, lon, getobs=False):[m
+[31m-    data = ebirb.get_nearby_observations(ebirdkey, lat, lon, dist=2, back=30)[m
+[31m-    loccodes = [][m
+[31m-    for bird in data:[m
+[31m-        if not bird['locId'] in loccodes:[m
+[31m-            loccodes.append(bird['locId'])[m
+[31m-    if len(loccodes) > 10:[m
+[31m-        print('Consider reducing observation range')[m
+ [m
+[31m-    loccodes = loccodes[:10][m
+[31m-    if getobs is True:[m
+[31m-        for bird in data:[m
+[31m-            bird['numObs'] = len(ebirb.get_species_observations([m
+[31m-                ebirdkey, bird['speciesCode'], loccodes))[m
+[32m+[m[32mdef getobservationsat(address: str, radius_km=2, days=30):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Retrieves observations of birds at a given address location within a[m[41m [m
+[32m+[m[32m    specified radius and timeframe.[m
+ [m
+[31m-    return data[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    address : str[m
+[32m+[m[32m        DESCRIPTION.[m
+[32m+[m[32m    radius_km : float, optional[m
+[32m+[m[32m        Radius in km from address to search. The default is 2.[m
+[32m+[m[32m    days : int, optional[m
+[32m+[m[32m        Number of preceeding days to search between 1 and 30. The default is 30.[m
+ [m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    dict[m
+[32m+[m[32m        List of observations in simple format. Only the most recent observation[m
+[32m+[m[32m        per bird species is reported.[m
+ [m
+[31m-def getloc(address):[m
+[32m+[m[32m    """[m
+     url = 'https://nominatim.openstreetmap.org/search?q=' + \[m
+         urllib.parse.quote(address) + '&format=json&accept-language=en&zoom=3'[m
+[31m-    response = req.get(url).json()[m
+[31m-    return (response[0]['lat'], response[0]['lon'])[m
+[31m-[m
+[31m-[m
+[31m-def downloadbirdimages(data):[m
+[32m+[m[32m    response = req.get(url, timeout = 10).json()[m
+[32m+[m[32m    return ebirb.get_nearby_observations(EBIRDKEY,[m
+[32m+[m[32m                                         response[0]['lat'],[m
+[32m+[m[32m                                         response[0]['lon'],[m
+[32m+[m[32m                                         dist=radius_km,[m
+[32m+[m[32m                                         back=days)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef downloadbirdimages(data, max_images):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Downloads images of birds based on their common names.[m
+[32m+[m
+[32m+[m[32m    Iterates through a list of bird data dictionaries and attempts to download[m[41m [m
+[32m+[m[32m    images for each bird based on its common name. If an image cannot be found[m[41m [m
+[32m+[m[32m    for a bird, the bird's common name is added to a list of birds not found.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    data : list[m
+[32m+[m[32m        Output from the getobservationsat function.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    birdnotfound : list[m
+[32m+[m[32m        list of birds failed to download.[m
+[32m+[m
+[32m+[m[32m    """[m
+[32m+[m[32m    birdnotfound = [][m
+     for bird in data:[m
+         print(bird['comName'])[m
+         try:[m
+[31m-            recurseretrydownload(bird['comName'].replace(' ', '+'), 20)[m
+[32m+[m[32m            recurseretrydownload(bird['comName'].replace(' ', '+'), max_images)[m
+         except:[m
+[31m-            print(f'Woops! We cant get images for {bird["comName"]}')[m
+[32m+[m[32m            birdnotfound.append(bird['comName'])[m
+[32m+[m[32m    return birdnotfound[m
+ [m
+ [m
+ def recurseretrydownload(key, tries):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Recursively attempts to download an image based on a key using a downloader.[m
+[32m+[m
+[32m+[m[32m    This function tries to download an image based on the provided key. If the[m[41m [m
+[32m+[m[32m    download fails, it retries recursively with a reduced number of tries until[m[41m [m
+[32m+[m[32m    either the download succeeds or the number of tries is exhausted.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    key : str[m
+[32m+[m[32m        Search string.[m
+[32m+[m[32m    tries : int[m
+[32m+[m[32m        number of images to attempt to download.[m
+[32m+[m
+[32m+[m[32m    Raises[m
+[32m+[m[32m    ------[m
+[32m+[m[32m    Exception[m
+[32m+[m[32m        Raised if download repeatedly fails even after all retries.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    None.[m
+[32m+[m
+[32m+[m[32m    """[m
+     try:[m
+         print(f'trying to download {key}')[m
+         simp.Downloader().download(key, tries)[m
+[31m-    except:[m
+[32m+[m[32m    except Exception as err:[m
+         if tries > 3:[m
+             recurseretrydownload(key, tries-2)[m
+         else:[m
+[31m-            return[m
+[31m-[m
+[32m+[m[32m            raise err[m
+ [m
+[31m-def generateselections(number, data):[m
+[31m-    return [random.sample(range(len(data)), 25) for x in range(number)][m
+[31m-[m
+[31m-def recursiveimgread(path, pics):[m
+[31m-    imgname = random.sample(pics, 1)[0][m
+[31m-    path2 = path / imgname[m
+[31m-    thisimg = image.imread(path2.__str__())[m
+[31m-    if np.size(thisimg,0) > 100 and np.size(thisimg,1) > 100:[m
+[31m-        return thisimg[m
+[31m-    else:[m
+[31m-        pics.remove(imgname)[m
+[31m-        return recursiveimgread(path, pics)[m
+ [m
+ def generatebingo(selection, data, save):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Generates a bingo card with images of selected birds.[m
+[32m+[m
+[32m+[m[32m    Creates a bingo card with images of birds based on the provided selection[m[41m [m
+[32m+[m[32m    of bird data. Each selection is represented by the common name of the bird.[m
+[32m+[m[32m    The images are retrieved from the 'simple_images' directory. The function[m
+[32m+[m[32m    also includes a 'free space' image at the center of the bingo card.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    selection : list[m
+[32m+[m[32m        list of 25 unique ints which determines the selected birds from data.[m
+[32m+[m[32m    data : list[m
+[32m+[m[32m        Output from the getobservationsat function.[m
+[32m+[m[32m    save : str[m
+[32m+[m[32m        string to be appended to saved file name.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    None.[m
+[32m+[m
+[32m+[m[32m    """[m
+     fstrings = [data[s]['comName'].replace(' ', '+') for s in selection][m
+     fig = pyplot.figure(figsize=(8, 11))[m
+     for ind, file in enumerate(fstrings):[m
+[36m@@ -90,22 +147,64 @@[m [mdef generatebingo(selection, data, save):[m
+             path = pathlib.PureWindowsPath([m
+                 __file__).parent / ('simple_images\\' + file)[m
+             pics = [f for f in os.listdir(path) if os.path.isfile(path / f)][m
+[31m-            thisimg = recursiveimgread(path,pics)[m
+[32m+[m[32m            thisimg = recursiveimgread(path, pics)[m
+         else:[m
+             path = pathlib.PureWindowsPath([m
+                 __file__).parent / ('freespace.jpg')[m
+[31m-            thisimg = image.imread(path.__str__())[m
+[32m+[m[32m            thisimg = image.imread(str(path))[m
+             name = 'Frog Space'[m
+         fig.add_subplot(5, 5, ind+1)[m
+         pyplot.imshow(thisimg)[m
+         pyplot.axis('off')[m
+         pyplot.title(name.replace('+', ' '))[m
+[31m-    pyplot.savefig('birdo' + datetime.datetime.now().strftime('%y.%m.%d ') + save + '.png', dpi=200)[m
+[32m+[m[32m    pyplot.savefig([m
+[32m+[m[32m        'Birdo ' + datetime.datetime.now().strftime('%y.%m.%d ') + save + '.png', dpi=200)[m
+     pyplot.show()[m
+[31m-    print('saved a bingo!')[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef recursiveimgread(path, pics):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Recursively reads an image file from the given directory path,[m
+[32m+[m[32m    ensuring that the image size is larger than the specified minimum size.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    path : Path[m
+[32m+[m[32m        Directory containing image.[m
+[32m+[m[32m    pics : list[m
+[32m+[m[32m        List of image file names.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    Image.Image[m
+[32m+[m[32m        he image object if its size is larger than the minimum size,[m
+[32m+[m[32m        otherwise recursively calls itself with a different image until a suitable image is found..[m
+[32m+[m
+[32m+[m[32m    """[m
+[32m+[m[32m    img_name = random.sample(pics, 1)[0][m
+[32m+[m[32m    img_path = path / img_name[m
+[32m+[m[32m    thisimg = image.imread(str(img_path))[m
+[32m+[m[32m    if np.size(thisimg, 0) > 100 and np.size(thisimg, 1) > 100:[m
+[32m+[m[32m        return thisimg[m
+[32m+[m[32m    pics.remove(img_name)[m
+[32m+[m[32m    return recursiveimgread(path, pics)[m
+ [m
+ [m
+ def checkforimages(data):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Checks if images are available for each bird in the provided data.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    data : list[m
+[32m+[m[32m        Output from the getobservationsat function.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    bool[m
+[32m+[m[32m        DESCRIPTION.[m
+[32m+[m
+[32m+[m[32m    """[m
+     for bird in data:[m
+         path = pathlib.PureWindowsPath([m
+             __file__).parent / ('simple_images\\' + bird['comName'].replace(' ', '+'))[m
+[36m@@ -115,9 +214,41 @@[m [mdef checkforimages(data):[m
+     return True[m
+ [m
+ [m
+[31m-if __name__ == '__main__':[m
+[31m-    data = getebirddata(*getloc('ADDRESS'))[m
+[31m-    downloadbirdimages(data)[m
+[32m+[m[32mdef birdo(address, radius_km=2, days=30, number_bingos=20, download=True, max_images=10):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Generate bird observation bingo cards based on observations at a given address.[m
+[32m+[m
+[32m+[m[32m    Parameters[m
+[32m+[m[32m    ----------[m
+[32m+[m[32m    address : str[m
+[32m+[m[32m        The address or location to search for bird observations..[m
+[32m+[m[32m    radius_km : int, optional[m
+[32m+[m[32m        The radius in kilometers to search around the address. Default is 2.[m
+[32m+[m[32m    days : int, optional[m
+[32m+[m[32m        The number of past days to consider for bird observations. The default is 30.[m
+[32m+[m[32m    number_bingos : int, optional[m
+[32m+[m[32m        The number of bingo cards to generate. The default is 20.[m
+[32m+[m[32m    download : bool, optional[m
+[32m+[m[32m        Whether to download bird images. The default is True.[m
+[32m+[m[32m    max_images : int, optional[m
+[32m+[m[32m        The maximum number of images to download per bird. The default is 10.[m
+[32m+[m
+[32m+[m[32m    Returns[m
+[32m+[m[32m    -------[m
+[32m+[m[32m    None.[m
+[32m+[m
+[32m+[m[32m    """[m
+[32m+[m[32m    data = getobservationsat(address)[m
+[32m+[m[32m    if download:[m
+[32m+[m[32m        downloadbirdimages(data, max_images=max_images)[m
+     if checkforimages(data) is True:[m
+[31m-        for ind, sel in enumerate(generateselections(50, data)):[m
+[31m-            generatebingo(sel, data, str(ind))[m
+[32m+[m[32m        for ind, sel in enumerate([random.sample(range(len(data)), 25)[m
+[32m+[m[32m                                   for x in range(number_bingos)]):[m
+[32m+[m[32m            generatebingo([m
+[32m+[m[32m                sel, data, f'{address}_{radius_km}km_{days}days_number{str(ind)}')[m
+[32m+[m[32m    else:[m
+[32m+[m[32m        print('Some birds do not have images downloaded!')[m
+[32m+[m
+[32m+[m
+[32m+[m[32mif __name__ == '__main__':[m
+[32m+[m[32m    birdo('Baltimore', radius_km=20, number_bingos=1, max_images=5)[m
